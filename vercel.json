@@ -1,0 +1,10 @@
+{
+  "buildCommand": "npm run db:generate && npm run build",
+  "installCommand": "npm install && npm run db:generate",
+  "framework": "nextjs",
+  "functions": {
+    "app/api/**/*.js": {
+      "maxDuration": 30
+    }
+  }
+}

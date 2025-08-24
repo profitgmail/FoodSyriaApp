@@ -1,0 +1,292 @@
+نظام التوثيق المرحلي ونقل المشروع بين الوكلاء مع توجيه دقيق
+
+نظام ليتضمن توجيهاً دقيقاً من الوكيل الحالي إلى التالي مع توثيق المهام المنجزة والمهام التالية.
+
+الكود المطور مع التوجيه الدقيق
+bash
+#!/bin/bash
+
+# نظام التوثيق المرحلي والتسليم بين الوكلاء مع توجيه دقيق
+PROJECT_NAME="مشروعي"
+REPO_URL="https://github.com/username/repo.git"
+DOC_DIR="التوثيق"
+PLAN_FILE="خطة_المشروع.md"
+CURRENT_AGENT="الوكيل_الأول"
+NEXT_AGENT="الوكيل_الثاني"
+
+# تأكد من وجود مجلد التوثيق
+mkdir -p "$DOC_DIR"
+
+# وظيفة لإنشاء توثيق مرحلي مفصل
+create_detailed_documentation() {
+    local STAGE=$1
+    local DESCRIPTION=$2
+    local COMPLETED_TASKS=$3
+    local NEXT_TASKS=$4
+    local ISSUES=$5
+    local TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
+    local DOC_FILE="$DOC_DIR/مرحلة_${STAGE}_${TIMESTAMP}.md"
+    
+    # إنشاء ملف التوثيق المفصل
+    cat > "$DOC_FILE" << EOF
+# توثيق المرحلة $STAGE - $PROJECT_NAME
+
+## المعلومات الأساسية
+- **التاريخ والوقت**: $(date)
+- **الوكيل المسؤول**: $CURRENT_AGENT
+- **المرحلة**: $STAGE
+
+## وصف المرحلة
+$DESCRIPTION
+
+## المهام المكتملة في هذه المرحلة
+$COMPLETED_TASKS
+
+## التغييرات التقنية
+\`\`\`
+$(git diff --name-only HEAD~1 HEAD)
+\`\`\`
+
+## المشكلات والصعوبات التي واجهتها
+$ISSUES
+
+## الخطوات التالية الموصى بها
+$NEXT_TASKS
+
+## ملاحظات للوكيل القادم
+- تأكد من تحديث المكتبات قبل البدء
+- هناك تحذير في console يحتاج المعالجة في الملف X
+- تم تحسين الأداء في المنطقة Y ولكن يمكن مزيد من التحسين
+
+EOF
+
+    # إضافة التوثيق وإرساله إلى المستودع
+    git add "$DOC_FILE"
+    git commit -m "توثيق مفصل للمرحلة $STAGE"
+    git push origin main
+    echo "تم إنشاء التوثيق المفصل في: $DOC_FILE"
+}
+
+# وظيفة لإنشاء برومبت تسليم شامل مع توجيه دقيق
+create_detailed_handover_prompt() {
+    local NEXT_AGENT=$1
+    local PROJECT_OVERVIEW=$2
+    local TECHNICAL_STATUS=$3
+    local URGENT_TASKS=$4
+    local HANDOVER_FILE="برومبت_تسليم_مفصل_للوكيل_$NEXT_AGENT.md"
+    
+    # جمع معلومات المشروع الحالية
+    local CURRENT_BRANCH=$(git branch --show-current)
+    local LAST_COMMIT=$(git log -1 --oneline)
+    local PROJECT_STATUS=$(git status --short)
+    local LAST_5_COMMITS=$(git log -5 --oneline --pretty=format:"%h - %s (%cr)")
+    
+    # إنشاء برومبت التسليم المفصل
+    cat > "$HANDOVER_FILE" << EOF
+# برومبت تسليم مفصل للمشروع: $PROJECT_NAME
+
+## التفويض الرسمي
+**إلى**: $NEXT_AGENT  
+**من**: $CURRENT_AGENT  
+**التاريخ**: $(date)  
+**الموضوع**: تسليم مشروع $PROJECT_NAME للمرحلة القادمة
+
+## نظرة عامة على المشروع
+$PROJECT_OVERVIEW
+
+## الحالة التقنية الحالية
+- **المستودع**: $REPO_URL
+- **الفرع الحالي**: $CURRENT_BRANCH
+- **آخر commit**: $LAST_COMMIT
+- **حالة المشروع**: $PROJECT_STATUS
+
+### آخر 5 commits
+$LAST_5_COMMITS
+
+## المهام المنجزة حتى الآن
+$(get_completed_tasks_summary)
+
+## الحالة التقنية المفصلة
+$TECHNICAL_STATUS
+
+## المهام العاجلة والمرحلة التالية
+$URGENT_TASKS
+
+## توجيهات دقيقة للوكيل الجديد
+
+### ١. إعداد البيئة التطويرية
+\`\`\`bash
+# ١. استنساخ المستودع
+git clone $REPO_URL
+cd $PROJECT_NAME
+
+# ٢. الانتقال للفرع الصحيح
+git checkout $CURRENT_BRANCH
+
+# ٣. تثبيت التبعيات (اختر ما يناسب مشروعك)
+npm install
+# أو
+pip install -r requirements.txt
+# أو
+composer install
+
+# ٤. بناء المشروع
+npm run build
+# أو
+mvn compile
+
+# ٥. التشغيل للتأكد
+npm start
+# أو
+python app.py
+\`\`\`
+
+### ٢. الأولويات المطلوبة
+١. **إصلاح عاجل**: مشكلة في ملف config.py - السطر ٤٥ يحتاج تصحيح
+٢. **مهمة عاجلة**: إنهاء واجهة المستخدم للوحدة الرئيسية
+٣. **تحسين**: تحسين وقت تحميل الصفحة الرئيسية
+
+### ٣. الخطوات التفصيلية للمهمة القادمة
+١. ابدأ بفحص ملف src/components/MainModule.js
+٢. أضف function جديدة لمعالجة البيانات في utils/dataProcessor.js
+٣. عدل وحدة التحكم في server/controllers/apiController.js
+٤. اختبر الوظيفة باستخدام npm test
+٥. ارفع التغييرات إلى فرع feature/new-module
+
+### ٤. النقاط التي تحتاج انتباه خاص
+- هناك تحذير في console حول deprecated function يجب معالجته
+- قاعدة البيانات تحتاج indexing لتحسين الأداء
+- يجب تحديث مكتبة axios إلى الإصدار ١.٥ لأسباب أمنية
+
+### ٥. الاختبارات المطلوبة
+- اختبار الوظيفة الجديدة في tests/unit/newModule.test.js
+- اختبار الأداء باستخدام npm run test:performance
+- اختبار التوافق على المتصفحات الرئيسية
+
+## خطة العمل المقترحة
+١. **اليوم الأول**: تهيئة البيئة ومعالجة المشكلات العاجلة
+٢. **الأسبوع الأول**: إكمال المهام العاجلة والبدء في التطوير الجديد
+٣. **الأسبوع الثاني**: مراجعة الشفرة واختبارات الأداء
+
+## معلومات الاتصال للاستفسار
+- للاستفسارات التقنية: technical@company.com
+- للاستفسارات حول المتطلبات: product@company.com
+- وثائق المشروع: https://project-docs.com
+
+EOF
+
+    echo "تم إنشاء برومبت التسليم المفصل في: $HANDOVER_FILE"
+    git add "$HANDOVER_FILE"
+    git commit -m "إضافة برومبت تسليم مفصل للوكيل $NEXT_AGENT"
+    git push origin main
+}
+
+# وظيفة مساعدة للحصول على ملخص المهام المكتملة
+get_completed_tasks_summary() {
+    local SUMMARY=""
+    local DOC_FILES=$(find "$DOC_DIR" -name "*.md" | sort)
+    
+    for file in $DOC_FILES; do
+        local STAGE=$(basename "$file" | cut -d'_' -f2)
+        local DATE=$(basename "$file" | cut -d'_' -f3- | sed 's/.md//')
+        local TASKS=$(grep -A 10 "## المهام المكتملة" "$file" | sed -n '2,11p' | tr '\n' ' ')
+        
+        SUMMARY="${SUMMARY}- **المرحلة $STAGE** ($DATE): $TASKS\n"
+    done
+    
+    echo "$SUMMARY"
+}
+
+# وظيفة استلام المشروع للوكيل الجديد مع توجيهات
+setup_project_with_guidance() {
+    local REPO_URL=$1
+    local PROJECT_DIR=$(basename "$REPO_URL" .git)
+    
+    echo "بدء تهيئة المشروع للوكيل الجديد مع التوجيهات..."
+    
+    # استنساخ المستودع
+    git clone "$REPO_URL"
+    cd "$PROJECT_DIR" || exit 1
+    
+    # عرض آخر توثيق مرحلي
+    local LATEST_DOC=$(find "$DOC_DIR" -name "*.md" | sort | tail -1)
+    echo "آخر توثيق مرحلي: $LATEST_DOC"
+    cat "$LATEST_DOC"
+    
+    # عرض برومبت التسليم إذا كان موجودًا
+    local HANDOVER_FILE=$(find . -name "برومبت_تسليم_مفصل_للوكيل_*.md" | head -1)
+    if [ -f "$HANDOVER_FILE" ]; then
+        echo "برومبت التسليم المفصل:"
+        cat "$HANDOVER_FILE"
+        
+        # استخراج الأوامر من برومبت التسليم
+        echo "استخراج أوامر التهيئة من برومبت التسليم..."
+        sed -n '/إعداد البيئة التطويرية/,/### ٢. الأولويات المطلوبة/p' "$HANDOVER_FILE" | \
+        sed -n '/```bash/,/```/p' | \
+        sed '1d;$d' | \
+        while read line; do
+            if [ ! -z "$line" ]; then
+                echo "تنفيذ: $line"
+                eval "$line"
+            fi
+        done
+    fi
+    
+    echo "تم تهيئة المشروع بنجاح وفق التوجيهات!"
+}
+
+## مثال على استخدام النظام المتطور
+
+# إنشاء توثيق مفصل لمرحلة معينة
+create_detailed_documentation \
+    "3" \
+    "تطوير واجهة المستخدم الرئيسية وتحسين الأداء" \
+    "✓ إنشاء المكون الرئيسي للواجهة
+✓ تحسين وقت تحميل الصور
+✓ إضافة نظام التخزين المؤقت
+✓ تحسين استجابية الواجهة للجوال" \
+    "■ إضافة نظام المصادقة
+■ تطوير لوحة التحكم الإدارية
+■ تحسين أمان الاتصالات
+■ إعداد اختبارات الأداء" \
+    "■ مشكلة في توافق متصفح Safari
+■ تحذير حول مكتبة قديمة تحتاج التحديث"
+
+# إنشاء برومبت تسليم مفصل
+create_detailed_handover_prompt \
+    "الوكيل_الثاني" \
+    "مشروع تطوير منصة تجارة إلكترونية بميزات متقدمة. تم إكمال ٧٠٪ من الوظائف الأساسية including إدارة المنتجات، عربة التسوق، ومعالجة الدفع. التركيز الآن على تحسين الأداء وإضافة ميزات متقدمة." \
+    "■ قاعدة البيانات: MongoDB مع indexing محسن
+■ الخادوم: Node.js مع Express
+■ الواجهة الأمامية: React مع Redux
+■ الأداء: وقت تحميل الصفحة الرئيسية ٢.٣ ثانية
+■ الاختبارات: ٨٥٪ تغطية بالاختبارات
+■ المشكلات المعروفة: ٣ مشكلات طفيفة في واجهة المستخدم" \
+    "١. إصلاح مشكلة الأداء في صفحة المنتجات (مستعجل)
+٢. إضافة نظام التوصيات (مهم)
+٣. تحسين أمان عملية الدفع (مستعجل)
+٤. إعداد نظام النسخ الاحتياطي التلقائي (مهم)"
+
+# للوكيل الجديد: تهيئة المشروع مع التوجيهات
+# setup_project_with_guidance "$REPO_URL"
+
+## كيفية استخدام النظام المتطور
+
+١. لإنشاء توثيق مفصل:
+bash
+create_detailed_documentation \
+    "رقم_المرحلة" \
+    "وصف_المرحلة" \
+    "قائمة_المهام_المكتملة" \
+    "المهام_التالية" \
+    "المشكلات_التي_واجهتها"
+٢. لإنشاء برومبت تسليم مفصل:
+bash
+create_detailed_handover_prompt \
+    "اسم_الوكيل_الجديد" \
+    "نظرة_عامة_على_المشروع" \
+    "الحالة_التقنية" \
+    "المهام_العاجلة"
+٣. لاستلام المشروع مع التوجيهات:
+bash
+setup_project_with_guidance "رابط_المستودع"

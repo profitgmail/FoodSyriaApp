@@ -1,0 +1,37 @@
+<<<<<<< HEAD
+=======
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://foodsyriaapp.com/sitemap.xml
+
+# Crawl delay
+Crawl-delay: 1
+
+# Disallow admin areas
+Disallow: /admin/
+Disallow: /api/
+Disallow: /auth/
+Disallow: /dashboard/
+Disallow: /payment/
+
+# Allow specific bots
+>>>>>>> 3e5b3d44f2a97b3142de7b8c89f805f8846ac518
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+<<<<<<< HEAD
+
+User-agent: *
+Allow: /
+=======
+>>>>>>> 3e5b3d44f2a97b3142de7b8c89f805f8846ac518
