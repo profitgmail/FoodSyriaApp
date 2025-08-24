@@ -6,221 +6,483 @@
 
 generator client {
   provider = "prisma-client-js"
+  // تحسينات لـ Vercel
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
+// User base model for all roles
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
+  id        String      @id @default(cuid())
+  email     String      @unique
   name      String?
   phone     String?
-  role      UserRole @default(CUSTOMER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  password  String?
+  role      UserRole    @default(CUSTOMER)
+  status    UserStatus  @default(ACTIVE)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 
-  // Relations
-  orders    Order[]
-  reviews   Review[]
-  reservations Reservation[]
+  // Relations based on role
+  customer     Customer?
+  restaurant   Restaurant?
+  driver       Driver?
+  admin        Admin?
+  
+  // Common relations
+  notifications Notification[]
+  wallet       Wallet?
+  ratingsBy    Rating[] @relation("RatingsBy")
 
   @@map("users")
 }
 
-model Category {
-  id          String   @id @default(cuid())
+// Customer specific data
+model Customer {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  defaultAddress String?
+  loyaltyPoints Int     @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  addresses    Address[]
+  orders       Order[]
+  reservations Reservation[]
+  reviews      Review[]
+  loyaltyRewards LoyaltyReward[]
+
+  @@map("customers")
+}
+
+// Restaurant model
+model Restaurant {
+  id          String           @id @default(cuid())
+  userId      String           @unique
   name        String
   description String?
-  image       String?
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  phone       String
+  email       String?
+  address     String
+  latitude    Float?
+  longitude   Float?
+  status      RestaurantStatus @default(ACTIVE)
+  ratingAvg   Float            @default(0)
+  logoUrl     String?
+  coverUrl    String?
+  deliveryFee Float            @default(0)
+  minOrder    Float            @default(0)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
-  // Relations
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categories Category[]
+  menuItems  MenuItem[]
+  orders     Order[]
+  ratingsFor Rating[]     @relation("RatingsFor")
+
+  @@map("restaurants")
+}
+
+// Driver model
+model Driver {
+  id            String       @id @default(cuid())
+  userId        String       @unique
+  vehicleType   VehicleType
+  licenseNumber String
+  vehiclePlate  String
+  verified      Boolean      @default(false)
+  status        DriverStatus @default(OFFLINE)
+  latitude      Float?
+  longitude     Float?
+  ratingAvg     Float        @default(0)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders      Order[]
+  ratingsFor  Rating[]     @relation("RatingsForDriver")
+
+  @@map("drivers")
+}
+
+// Admin model
+model Admin {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  role      AdminRole @default(SUPER_ADMIN)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("admins")
+}
+
+// Address model for customers
+model Address {
+  id        String   @id @default(cuid())
+  customerId String
+  label     String
+  street    String
+  city      String
+  state     String?
+  postalCode String?
+  latitude  Float?
+  longitude Float?
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  orders   Order[]
+
+  @@map("addresses")
+}
+
+// Category model for restaurants
+model Category {
+  id           String   @id @default(cuid())
+  restaurantId String
+  name         String
+  description  String?
+  sortOrder    Int      @default(0)
+  imageUrl     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  restaurant Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   menuItems MenuItem[]
 
   @@map("categories")
 }
 
+// Menu item model
 model MenuItem {
   id          String   @id @default(cuid())
+  restaurantId String
+  categoryId  String?
   name        String
   description String?
   price       Float
-  image       String?
-  isActive    Boolean  @default(true)
+  imageUrl    String?
+  available   Boolean  @default(true)
   isFeatured  Boolean  @default(false)
-  categoryId  String
+  sortOrder   Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Relations
-  category    Category @relation(fields: [categoryId], references: [id])
-  orderItems  OrderItem[]
-  reviews     Review[]
+  restaurant Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  category   Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  orderItems OrderItem[]
 
   @@map("menu_items")
 }
 
+// Order model with enhanced status
 model Order {
-  id          String      @id @default(cuid())
-  userId      String?
-  status      OrderStatus @default(PENDING)
-  totalAmount Float
-  deliveryFee Float       @default(0)
-  taxAmount   Float       @default(0)
-  finalAmount Float
-  notes       String?
-  deliveryAddress String?
-  phone       String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id            String        @id @default(cuid())
+  customerId    String
+  restaurantId  String
+  driverUserId  String?
+  addressId     String
+  status        OrderStatus  @default(CREATED)
+  paymentStatus PaymentStatus @default(PENDING)
+  paymentMethod PaymentMethod @default(COD)
+  subtotal      Float
+  deliveryFee   Float
+  tax           Float         @default(0)
+  discount      Float         @default(0)
+  total         Float
+  notes         String?
+  estimatedTime Int?          // in minutes
+  deliveredAt   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
-  // Relations
-  user        User?       @relation(fields: [userId], references: [id])
-  orderItems  OrderItem[]
-  payments    Payment[]
+  customer   Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  restaurant Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  driver     Driver?     @relation(fields: [driverUserId], references: [id], onDelete: SetNull)
+  address    Address     @relation(fields: [addressId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+  payment    Payment?
+  ratings    Rating[]
 
   @@map("orders")
 }
 
+// Order item model
 model OrderItem {
-  id        String @id @default(cuid())
-  orderId   String
+  id         String  @id @default(cuid())
+  orderId    String
   menuItemId String
-  quantity  Int
-  price     Float
-  notes     String?
-  createdAt DateTime @default(now())
+  quantity   Int
+  price      Float
+  notes      String?
+  createdAt  DateTime @default(now())
 
-  // Relations
-  order     Order    @relation(fields: [orderId], references: [id])
-  menuItem  MenuItem @relation(fields: [menuItemId], references: [id])
+  order    Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
 
   @@map("order_items")
 }
 
+// Payment model
 model Payment {
-  id          String       @id @default(cuid())
-  orderId     String
-  amount      Float
-  method      PaymentMethod
-  status      PaymentStatus @default(PENDING)
+  id            String        @id @default(cuid())
+  orderId       String        @unique
+  provider      String        // "stripe", "paypal", "wallet", etc.
+  amount        Float
+  currency      String        @default("SYP")
+  status        PaymentStatus @default(INIT)
   transactionId String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  last4         String?       // for card payments
+  errorMessage  String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
-  // Relations
-  order       Order        @relation(fields: [orderId], references: [id])
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@map("payments")
 }
 
-model Table {
-  id          String   @id @default(cuid())
-  number      Int
-  capacity    Int
-  location    String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+// Wallet model
+model Wallet {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  balance   Float    @default(0)
+  currency  String   @default("SYP")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  // Relations
-  reservations Reservation[]
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions WalletTxn[]
 
-  @@map("tables")
+  @@map("wallets")
 }
 
-model Reservation {
-  id          String           @id @default(cuid())
-  userId      String?
-  tableId     String
-  date        DateTime
-  time        DateTime
-  numberOfGuests Int
-  status      ReservationStatus @default(PENDING)
-  specialRequests String?
-  phone       String?
-  email       String?
-  name        String?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+// Wallet transaction model
+model WalletTxn {
+  id          String        @id @default(cuid())
+  walletId    String
+  type        WalletTxnType
+  amount      Float
+  balance     Float         // balance after transaction
+  description String?
+  reference   String?       // order_id, etc.
+  createdAt   DateTime      @default(now())
 
-  // Relations
-  user        User?            @relation(fields: [userId], references: [id])
-  table       Table            @relation(fields: [tableId], references: [id])
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@map("wallet_transactions")
+}
+
+// Rating model
+model Rating {
+  id             String   @id @default(cuid())
+  orderId        String   @unique
+  byUserId       String
+  forRestaurantId String?
+  forDriverUserId String?
+  score          Int      // 1-5
+  comment        String?
+  createdAt      DateTime @default(now())
+
+  order       Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  byUser      User        @relation("RatingsBy", fields: [byUserId], references: [id], onDelete: Cascade)
+  restaurant  Restaurant? @relation("RatingsFor", fields: [forRestaurantId], references: [id], onDelete: SetNull)
+  driver      Driver?     @relation("RatingsForDriver", fields: [forDriverUserId], references: [id], onDelete: SetNull)
+
+  @@map("ratings")
+}
+
+// Promotion model
+model Promotion {
+  id            String           @id @default(cuid())
+  name          String
+  description   String
+  scope         PromotionScope   @default(GLOBAL)
+  ruleExpr      String?          // JSON expression for rules
+  discountType  DiscountType
+  value         Float
+  validFrom     DateTime
+  validTo       DateTime
+  maxUses       Int?
+  usedCount     Int              @default(0)
+  isActive      Boolean          @default(true)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@map("promotions")
+}
+
+// Notification model
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType @default(INFO)
+  title     String
+  message   String
+  payload   Json?            // additional data
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+// Legacy models for backward compatibility
+model Reservation {
+  id        String           @id @default(cuid())
+  customerId String
+  date      DateTime
+  time      String
+  partySize Int
+  status    ReservationStatus @default(PENDING)
+  notes     String?
+  phone     String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   @@map("reservations")
 }
 
 model Review {
   id        String   @id @default(cuid())
-  userId    String?
-  menuItemId String?
-  rating    Int      // 1-5 stars
+  customerId String
+  rating    Int
   comment   String?
-  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
-  user      User?     @relation(fields: [userId], references: [id])
-  menuItem  MenuItem? @relation(fields: [menuItemId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   @@map("reviews")
 }
 
-model RestaurantInfo {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  address     String?
-  phone       String?
-  email       String?
-  website     String?
-  logo        String?
-  coverImage  String?
-  openingHours String? // JSON string for hours
-  socialMedia String? // JSON string for social media links
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model LoyaltyReward {
+  id           String     @id @default(cuid())
+  customerId   String
+  points       Int
+  type         RewardType
+  description  String
+  orderId      String?
+  reservationId String?
+  createdAt    DateTime   @default(now())
 
-  @@map("restaurant_info")
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("loyalty_rewards")
 }
 
 // Enums
 enum UserRole {
   CUSTOMER
-  STAFF
+  RESTAURANT
+  DRIVER
   ADMIN
 }
 
-enum OrderStatus {
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
   PENDING
+  DELETED
+}
+
+enum RestaurantStatus {
+  ACTIVE
+  CLOSED
+  PAUSED
+  SUSPENDED
+}
+
+enum DriverStatus {
+  OFFLINE
+  ONLINE
+  BUSY
+  ON_DELIVERY
+}
+
+enum VehicleType {
+  BIKE
+  CAR
+  SCOOTER
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  SUPPORT
+  MANAGER
+}
+
+enum OrderStatus {
+  CREATED
   CONFIRMED
   PREPARING
-  READY
+  READY_FOR_PICKUP
+  PICKED_UP
+  EN_ROUTE
   DELIVERED
+  CANCELLED
+  FAILED_PAYMENT
+}
+
+enum PaymentStatus {
+  INIT
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+  REFUNDED
   CANCELLED
 }
 
 enum PaymentMethod {
-  CASH
-  CREDIT_CARD
-  DEBIT_CARD
-  MOBILE_PAYMENT
-  ONLINE_PAYMENT
+  COD
+  CARD
+  WALLET
+  SHAM_CASH
+  SYRIATEL_CASH
 }
 
-enum PaymentStatus {
-  PENDING
-  COMPLETED
-  FAILED
-  REFUNDED
+enum WalletTxnType {
+  CREDIT
+  DEBIT
+  HOLD
+  RELEASE
+}
+
+enum PromotionScope {
+  GLOBAL
+  RESTAURANT
+  AREA
+  USER
+}
+
+enum DiscountType {
+  PERCENT
+  FIXED
+  FREE_DELIVERY
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+  ORDER_UPDATE
+  PAYMENT_UPDATE
+  PROMOTION
 }
 
 enum ReservationStatus {
@@ -228,5 +490,10 @@ enum ReservationStatus {
   CONFIRMED
   CANCELLED
   COMPLETED
-  NO_SHOW
+}
+
+enum RewardType {
+  EARNED
+  REDEEMED
+  BONUS
 }

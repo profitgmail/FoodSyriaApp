@@ -20,6 +20,18 @@ const nextConfig: NextConfig = {
     // 构建时忽略ESLint错误
     ignoreDuringBuilds: true,
   },
+  // إعدادات Vercel و Prisma
+  env: {
+    CUSTOM_KEY: process.env.CUSTOM_KEY,
+  },
+  // تجنب مشاكل التخزين المؤقت في Vercel
+  generateBuildId: async () => {
+    return 'food-syria-app-build-' + Date.now();
+  },
+  // إعدادات خاصة بـ Prisma
+  experimental: {
+    // تمكين الميزات التجريبية إذا لزم الأمر
+  },
 };
 
 export default nextConfig;

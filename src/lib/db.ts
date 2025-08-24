@@ -1,13 +1,7 @@
-import { PrismaClient } from '@prisma/client'
+import { prisma } from './prisma'
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
+// تصدير prisma client المحسن للاستخدام في جميع أنحاء التطبيق
+export { prisma as db }
 
-export const db =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log: ['query'],
-  })
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
+// إعادة تصدير health check function
+export { prismaHealthCheck } from './prisma'
